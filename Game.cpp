@@ -123,8 +123,12 @@ void Game::Draw() {
 void Game::Shutdown() {
 	SDL_DestroyTexture(wallTexture);
 	SDL_DestroyTexture(groundTexture);
+	SDL_DestroyTexture(boxTexture);
+	SDL_DestroyTexture(goalTexture);
+
 	SDL_DestroyRenderer(renderer);
 	SDL_DestroyWindow(window);
+
 	IMG_Quit();
 	SDL_Quit();
 }
