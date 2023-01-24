@@ -20,10 +20,8 @@ void Player::Move(int x, int y)
 		return;
 	}
 
-	if (game->HitBox(newPlayerX, newPlayerY)) {
-		if (!game->PushBox(x, y, newPlayerX, newPlayerY)) {
-			return;
-		}
+	if (!game->BoxUpdated(x, y, newPlayerX, newPlayerY)) {
+		return;
 	}
 
 	pos.x = newPlayerX;
@@ -52,4 +50,12 @@ void Player::SetDirection(int x, int y) {
 	}
 
 	spriteRect.x = direction * TILE_SIZE;
+}
+
+void Player::Reset(int x, int y) {
+	direction = 0;
+	pos.x = x;
+	pos.y = y;
+	posRect = { pos.x * TILE_SIZE, pos.y * TILE_SIZE, TILE_SIZE, TILE_SIZE };
+	spriteRect = { 0, 0, TILE_SIZE, TILE_SIZE };
 }

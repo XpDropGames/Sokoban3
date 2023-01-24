@@ -24,7 +24,7 @@ bool Game::Init() {
 	}
 
 	levelManager = new LevelManager();
-	levelManager->LoadLevel("Levels/level1.txt");
+	levelManager->LoadLevel();
 
 	wallTexture = LoadTexture("Assets/wall.png");
 	groundTexture = LoadTexture("Assets/ground.png");
@@ -33,13 +33,7 @@ bool Game::Init() {
 
 	player = new Player(this);
 
-	for (int r = 0; r < TILE_ROWS; r++) {
-		for (int c = 0; c < TILE_COLS; c++) {
-			if (levelManager->levelMap[c][r] == 'p') {
-				player->Move(c, r);
-			}
-		}
-	}
+	InitLevel();
 
 	return true;
 }
@@ -59,27 +53,36 @@ void Game::HandleEvents() {
 		if (event.type == SDL_QUIT) {
 			isRunning = false;
 		}
-	}
 
-	if (event.type == SDL_KEYDOWN) {
-		switch (event.key.keysym.sym)
-		{
-		case SDLK_RIGHT:
-			player->Move(1, 0);
-			break;
-		case SDLK_LEFT:
-			player->Move(-1, 0);
-			break;
-		case SDLK_DOWN:
-			player->Move(0, 1);
-			break;
-		case SDLK_UP:
-			player->Move(0, -1);
-			break;
-		default:
-			break;
+		if (event.type == SDL_KEYDOWN) {
+			switch (event.key.keysym.sym)
+			{
+			case SDLK_RIGHT:
+				player->Move(1, 0);
+				break;
+			case SDLK_LEFT:
+				player->Move(-1, 0);
+				break;
+			case SDLK_DOWN:
+				player->Move(0, 1);
+				break;
+			case SDLK_UP:
+				player->Move(0, -1);
+				break;
+			case SDLK_r:
+				DestroyBoxes();
+				InitLevel();
+				break;
+			case SDLK_s:
+				GoToNextLevel();
+				break;
+			default:
+				break;
+			}
 		}
 	}
+
+	
 
 	const Uint8* keystates = SDL_GetKeyboardState(NULL);
 
@@ -103,9 +106,6 @@ void Game::Draw() {
 			if (levelManager->levelMap[c][r] == 'x') {
 				SDL_RenderCopy(renderer, wallTexture, NULL, &rect);
 			}
-			else if (levelManager->levelMap[c][r] == 'b') {
-				SDL_RenderCopy(renderer, boxTexture, NULL, &rect);
-			}
 			else if (levelManager->levelMap[c][r] == 'g') {
 				SDL_RenderCopy(renderer, goalTexture, NULL, &rect);
 			}
@@ -113,6 +113,11 @@ void Game::Draw() {
 				SDL_RenderCopy(renderer, groundTexture, NULL, &rect);
 			}
 		}
+	}
+
+	// Draw boxes
+	for (int i = 0; i < boxes.size(); i++) {
+		SDL_RenderCopy(renderer, boxTexture, NULL, boxes[i]->GetRect());
 	}
 
 	player->Draw(renderer);
@@ -153,22 +158,100 @@ bool Game::HitWall(int x, int y) {
 	return levelManager->levelMap[x][y] == 'x';
 }
 
-bool Game::HitBox(int x, int y) {
-	return levelManager->levelMap[x][y] == 'b';
-}
+bool Game::CanPushBox(Box* box, int x, int y) {
 
-bool Game::PushBox(int moveX, int moveY, int pX, int pY) {
-	int newBoxX = pX + moveX;
-	int newBoxY = pY + moveY;
-
-	// If box was pushed into wall or other box
-	if (HitWall(newBoxX, newBoxY) || HitBox(newBoxX, newBoxY)) {
+	// Exit if trying to push into wall
+	if (HitWall(x, y)) {
 		return false;
 	}
 
-	// Update map ground and box positions
-	levelManager->levelMap[pX][pY] = 'o';
-	levelManager->levelMap[newBoxX][newBoxY] = 'b';
+	// Exit if trying to push into another box
+	for (int i = 0; i < boxes.size(); i++) {
+		if (boxes[i] == box) {
+			continue;
+		}
+		else if (x == boxes[i]->GetPos().x && y == boxes[i]->GetPos().y) {
+			return false;
+		}
+	}
 
 	return true;
+}
+
+bool Game::BoxUpdated(int moveX, int moveY, int pX, int pY) {
+	Box* boxToPush = nullptr;
+
+	// Find box attempting to push
+	for (int i = 0; i < boxes.size(); i++) {
+		if (pX == boxes[i]->GetPos().x && pY == boxes[i]->GetPos().y) {
+			boxToPush = boxes[i];
+		}
+	}
+
+	// Check if we can push the box, and if so, update the box
+	if (boxToPush != nullptr) {
+		int toPushX = pX + moveX;
+		int toPushY = pY + moveY;
+
+		if (CanPushBox(boxToPush, toPushX, toPushY)) {
+			bool inGoal = HitGoal(toPushX, toPushY);
+			boxToPush->Update(toPushX, toPushY, inGoal);
+			if (AllGoalsComplete()) {
+				GoToNextLevel();
+				return false;
+			}
+		}
+		else {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+bool Game::HitGoal(int x, int y) {
+	return levelManager->levelMap[x][y] == 'g';
+}
+
+bool Game::AllGoalsComplete() {
+	for (int i = 0; i < boxes.size(); i++) {
+		if (!boxes[i]->GetInGoal()) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+void Game::DestroyBoxes() {
+	// Clean vector
+	for (int i = 0; i < boxes.size(); i++)
+	{
+		delete boxes[i];
+	}
+	boxes.erase(boxes.begin(), boxes.end());
+}
+
+void Game::InitLevel() {
+	// Reset Player and add new boxes
+	for (int r = 0; r < TILE_ROWS; r++) {
+		for (int c = 0; c < TILE_COLS; c++) {
+			if (levelManager->levelMap[c][r] == 'p') {
+				player->Reset(c, r);
+			}
+			else if (levelManager->levelMap[c][r] == 'b') {
+				boxes.emplace_back(new Box(c, r));
+			}
+		}
+	}
+}
+
+void Game::GoToNextLevel() {
+	DestroyBoxes();
+
+	// Go to next level
+	levelManager->UpdateLevel();
+	levelManager->LoadLevel();
+
+	InitLevel();
 }

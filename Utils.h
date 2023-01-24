@@ -6,6 +6,11 @@
 
 using namespace std;
 
+struct Vec2 {
+	int x;
+	int y;
+};
+
 const int TILE_SIZE = 64;
 const int TILE_ROWS = 10;
 const int TILE_COLS = 10;

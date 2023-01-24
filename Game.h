@@ -3,6 +3,9 @@
 #include "Utils.h"
 #include "LevelManager.h"
 #include "Player.h"
+#include "Box.h"
+
+#include <vector>
 
 class Game
 {
@@ -13,13 +16,19 @@ public:
 
 	SDL_Texture* LoadTexture(string path);
 	bool HitWall(int x, int y);
-	bool HitBox(int x, int y);
-	bool PushBox(int moveX, int moveY, int pX, int pY);
+	bool BoxUpdated(int moveX, int moveY, int pX, int pY);
 
 private:
 	void HandleEvents();
 	void Update();
 	void Draw();
+
+	bool HitGoal(int x, int y);
+	bool AllGoalsComplete();
+	void DestroyBoxes();
+	void InitLevel();
+	void GoToNextLevel();
+	bool CanPushBox(Box* box, int x, int y);
 
 	bool isRunning = true;
 
@@ -32,5 +41,6 @@ private:
 
 	class LevelManager* levelManager;
 	class Player* player;
+	vector<Box*> boxes;
 };
 
